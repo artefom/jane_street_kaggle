@@ -7,17 +7,17 @@ Usage
 ============================
 
 To install project in editable mode (can be edited after installation locally),
-run cd `jange_street_kaggle && pip install -e .`
+run cd `jane_street_kaggle && pip install -e .`
 
 After that, Jane Street Kaggle competition can be imported inside any python code as
 ```python
-import jange_street_kaggle
-# Jane Street Kaggle competition creates configuration file jange_street_kaggle.cfg from template (default_jange_street_kaggle.cfg
+import jane_street_kaggle
+# Jane Street Kaggle competition creates configuration file jane_street_kaggle.cfg from template (default_jane_street_kaggle.cfg
 # inside current working directory
-# You can now edit the jange_street_kaggle.cfg to change the configuration and rerun script
+# You can now edit the jane_street_kaggle.cfg to change the configuration and rerun script
 
 # Import main entrypoint
-from jange_street_kaggle.train import train
+from jane_street_kaggle.train import train
 
 # Run
 train()
@@ -26,13 +26,13 @@ train()
 Project configuration
 ============================
 
-Project uses jange_street_kaggle.cfg file for configuration, which can be overridden using environment variables.
+Project uses jane_street_kaggle.cfg file for configuration, which can be overridden using environment variables.
 The file is divied into several sections, grouping configuration parameters for convenience.
 
 Each section can be acessed inside code as
 
 ```python
-from jange_street_kaggle.configuration import conf
+from jane_street_kaggle.configuration import conf
 
 # Get value from file or environment variable
 conf.get('section_name', 'variable name')
@@ -45,9 +45,9 @@ JANE__SECTION__VALUE=value
 
 On startup Jane Street Kaggle competition will automatically parse those and use them instead of values from .cfg file 
 
-See jange_street_kaggle/config_templates/default_jange_street_kaggle.cfg for detailed info about configuration
+See jane_street_kaggle/config_templates/default_jane_street_kaggle.cfg for detailed info about configuration
 
 Docker execution
 ============================
 
-Project comes with pre-configured docker file which will copy source code, install all libraries in cache-friendly fashion and run help message: `jange_street_kaggle --help`
+Project comes with pre-configured docker file which will copy source code, install all libraries in cache-friendly fashion and run help message: `jane_street_kaggle --help`

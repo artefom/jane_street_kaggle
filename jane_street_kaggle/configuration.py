@@ -186,7 +186,7 @@ class EnvConfigParser(ConfigParser):
 
         :param display_source: If False, the option value is returned. If True,
             a tuple of (option_value, source) is returned. Source is either
-            'jange_street_kaggle.cfg', 'default', 'env var', or 'cmd'.
+            'jane_street_kaggle.cfg', 'default', 'env var', or 'cmd'.
         :type display_source: bool
         :param display_sensitive: If True, the values of options set by env
             vars and bash commands will be displayed. If False, those options
@@ -206,7 +206,7 @@ class EnvConfigParser(ConfigParser):
         cfg = {}
         configs = [
             ('default', self.config_defaults),
-            ('jange_street_kaggle.cfg', self),
+            ('jane_street_kaggle.cfg', self),
         ]
 
         for (source_name, config) in configs:
@@ -252,7 +252,7 @@ def get_home_dir():
 
 def get_config(home_dir):
     if 'JANE_CONFIG' not in os.environ:
-        return os.path.join(home_dir, 'jange_street_kaggle.cfg')
+        return os.path.join(home_dir, 'jane_street_kaggle.cfg')
     return expand_env_var(os.environ['JANE_CONFIG'])
 
 
@@ -262,17 +262,17 @@ def parameterized_config(template):
 
 
 # Setting JANE_HOME and JANE_CONFIG from environment variables, using
-# "~/jange_street_kaggle" and "$JANE_HOME/jange_street_kaggle.cfg"
+# "~/jane_street_kaggle" and "$JANE_HOME/jane_street_kaggle.cfg"
 # respectively as defaults.
 
 HOME_DIR = get_home_dir()
 CONFIG_PATH = get_config(HOME_DIR)
 pathlib.Path(os.path.split(CONFIG_PATH)[0]).mkdir(parents=True, exist_ok=True)
-DEFAULT_CONFIG = _read_default_config_file('default_jange_street_kaggle.cfg')
+DEFAULT_CONFIG = _read_default_config_file('default_jane_street_kaggle.cfg')
 
 if not os.path.isfile(CONFIG_PATH):
     log.info(
-        'Creating new jange_street_kaggle config file in: %s',
+        'Creating new jane_street_kaggle config file in: %s',
         CONFIG_PATH
     )
     with open(CONFIG_PATH, 'w') as file:

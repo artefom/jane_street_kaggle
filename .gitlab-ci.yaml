@@ -11,7 +11,7 @@
 variables:
   JOB_BUILD_IMAGE: $DOCKER_REGISTRY_URL/base-images/build:latest
   IMAGE_NAME: $DOCKER_REGISTRY_URL/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME
-  APP_NAME: jange_street_kaggle
+  APP_NAME: jane_street_kaggle
 
 stages:
   - build

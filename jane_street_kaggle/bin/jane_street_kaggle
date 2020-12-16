@@ -1,0 +1,51 @@
+import logging
+
+import begin
+
+logger = logging.getLogger(__name__)
+
+
+def assert_exit(value, msg):
+    if not value:
+        print(msg)
+    exit(1)
+
+
+#
+# Sub-command entry point
+# Edit arguments of this function to get parameters from command-line interface
+# See begins for more info
+@begin.subcommand
+def train(data_path: 'data path', model_output: '.pkl output'):
+    """Train model"""
+    import jane_street_kaggle.train
+    model = jane_street_kaggle.train.train(data_path)
+
+    import pickle as pkl
+    with open(model_output, 'wb') as f:
+        pkl.dump(model, f)
+
+
+@begin.subcommand
+def index(input_file, output_file):
+    import os
+    import dask.dataframe as dd
+    from dask.diagnostics import ProgressBar
+    pb = ProgressBar()
+    pb.register()
+
+    assert_exit(os.path.exists(input_file), "%s does not exist" % input_file)
+    assert_exit(not os.path.exists(output_file), "%s already exists" % output_file)
+
+    dat = dd.read_csv(input_file)
+    dat.set_index('ts_id').repartition(npartitions=200).to_parquet(output_file,
+                                                                   engine='fastparquet')
+    print("Success")
+
+
+@begin.start
+def main():
+    """ML model for predicting returns on market trades given general market features.
+    Part of Jane Street Market Prediction Kaggle competition.
+    www.kaggle.com/c/jane-street-market-prediction"""
+    pass

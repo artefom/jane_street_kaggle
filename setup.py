@@ -6,10 +6,10 @@ from setuptools import setup, find_packages
 
 logger = logging.getLogger(__name__)
 
-# Kept manually in sync with jange_street_kaggle.__version__
+# Kept manually in sync with jane_street_kaggle.__version__
 # noinspection PyUnresolvedReferences
-spec = importlib.util.spec_from_file_location("jange_street_kaggle.version",
-                                              os.path.join("jange_street_kaggle", 'version.py'))
+spec = importlib.util.spec_from_file_location("jane_street_kaggle.version",
+                                              os.path.join("jane_street_kaggle", 'version.py'))
 # noinspection PyUnresolvedReferences
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
@@ -31,7 +31,7 @@ def git_version(version_):
     branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
     :param str version_: Semver version
-    :return: Found jange_street_kaggle version in Git repo
+    :return: Found jane_street_kaggle version in Git repo
     :rtype: str
     """
     try:
@@ -54,7 +54,7 @@ def git_version(version_):
         return 'no_git_version'
 
 
-def write_version(filename=os.path.join(*["jange_street_kaggle", "git_version"])):
+def write_version(filename=os.path.join(*["jane_street_kaggle", "git_version"])):
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
     :param str filename: Destination file to write
@@ -67,13 +67,13 @@ def write_version(filename=os.path.join(*["jange_street_kaggle", "git_version"])
 def do_setup():
     write_version()
     setup(
-        name="jange_street_kaggle",
+        name="jane_street_kaggle",
         version=version,
         packages=find_packages(exclude=['tests', 'tests.*', 'home']),
         install_requires=[
             'begins',
         ],
-        scripts=['jange_street_kaggle/bin/jange_street_kaggle'],
+        scripts=['jane_street_kaggle/bin/jane_street_kaggle'],
         zip_safe=False,
         author="Artyom Fomenko, Tatiana Taranenko",
         description="ML model for predicting returns on market trades given general market features. Part of Jane Street Market Prediction Kaggle competition. www.kaggle.com/c/jane-street-market-prediction",
