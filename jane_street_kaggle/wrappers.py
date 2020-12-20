@@ -32,7 +32,7 @@ class SequentialTransform:
 
     def transform(self, dataset):
         if isinstance(dataset, pd.DataFrame):
-            dataset = self.transform(dataset)
+            dataset = self.partial_transform(dataset)
         elif isinstance(dataset, dd.DataFrame):
             dataset = dataset.map_overlap(self.partial_transform, 0, 0)
         return dataset
