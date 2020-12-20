@@ -1,11 +1,26 @@
+import re
+
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-from . import pipeline
+from .wrappers import PartialFit, PartialTransform
+
+FEATURE_PATTERN = re.compile(r'^feature_\d+$')
+TARGET_PATTERN = re.compile(r'^resp(:?_\d+)?$')
 
 
-class Impute(pipeline.Module):
+def _get_columns_by_pattern(columns: list, pattern: re.Pattern):
+    rv = list()
+    for column_name in columns:
+        match = pattern.match(column_name)
+        if match is None:
+            continue
+        rv.append(column_name)
+    return rv
+
+
+class Impute:
     """Fill missing values"""
 
     def __init__(self, impute_value):
@@ -15,62 +30,69 @@ class Impute(pipeline.Module):
         return dataset.fillna(self.impute_value)
 
 
-class Scale(pipeline.Module):
+class Scale(PartialFit, PartialTransform):
     """Scale features for better gradient descent"""
 
-    def __init__(self):
+    def __init__(self, feature_pattern=FEATURE_PATTERN):
+        self.feature_pattern = feature_pattern
         self.scaler = None
         self.features = None
 
     def partial_fit(self, dataset: pd.DataFrame):
         if self.scaler is None:  # First run
-            self.features = [i for i in dataset.columns if 'feature' in i]
+            self.features = _get_columns_by_pattern(dataset.columns, self.feature_pattern)
             self.scaler = StandardScaler()
         self.scaler.partial_fit(dataset[self.features])
 
-    def transform(self, dataset: pd.DataFrame):
+    def reset_fit(self):
+        self.scaler = None
+        self.features = None
+
+    def partial_transform(self, dataset: pd.DataFrame):
         dataset[self.features] = self.scaler.transform(dataset[self.features])
         return dataset
 
+    def reset_transform(self):
+        pass
 
-class Model(pipeline.Module):
+
+class Model(PartialTransform):
     """Make predictions"""
 
-    def __init__(self):
+    def __init__(self, feature_pattern=FEATURE_PATTERN, target_pattern=TARGET_PATTERN):
+        self.feature_pattern = feature_pattern
+        self.target_pattern = target_pattern
         self.model = None
         self.features = None
         self.target = None
 
-    def transform(self, dataset: pd.DataFrame):
+    def partial_transform(self, dataset: pd.DataFrame):
         if self.model is None:
-            self.features = [i for i in dataset.columns if 'feature' in i]
-            self.target = [i for i in dataset.columns if 'resp' in i]
+            self.features = _get_columns_by_pattern(dataset.columns, self.feature_pattern)
+            self.target = _get_columns_by_pattern(dataset.columns, self.target_pattern)
             self.predicted = ['pred_' + i for i in self.target]
         dataset[self.predicted] = np.random.uniform(-1, 1, size=(len(dataset), len(self.predicted)))
         return dataset
 
+    def reset_transform(self):
+        pass
 
-class Action(pipeline.Module):
+
+class Action(PartialTransform):
     """Get action for given prediction"""
 
-    def __init__(self, threshold):
+    def __init__(self, threshold, target_pattern=TARGET_PATTERN):
+        self.target_pattern = target_pattern
         self.threshold = threshold
         self.responses = None
         self.actions = None
 
-    def transform(self, dataset: pd.DataFrame):
+    def partial_transform(self, dataset: pd.DataFrame):
         if self.responses is None:
-            self.responses = [i for i in dataset.columns if 'resp' in i]
+            self.responses = _get_columns_by_pattern(dataset.columns, self.target_pattern)
             self.actions = ['act_' + i for i in self.responses]
         dataset[self.actions] = (dataset[self.responses] > self.threshold).astype(int)
         return dataset
 
-
-class Score(pipeline.Module):
-    """Compute score for dataset"""
-
-    def __init__(self):
-        pass
-
-    def transform(self, dataset: pd.DataFrame):
+    def reset_transform(self):
         pass

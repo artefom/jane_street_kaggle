@@ -3,54 +3,9 @@ import shutil
 from typing import Union
 
 import dask.dataframe as dd
-import numpy as np
 import pandas as pd
 
-__all__ = ['run', 'Module']
-
-
-class Module:
-
-    def transform(self, data: pd.DataFrame):
-        raise NotImplementedError()
-
-    @property
-    def dask_before(self):
-        return 0
-
-
-def _run_fit_dask(dataset: dd.DataFrame, model_step: Module):
-    if 'partial_fit' not in model_step.__class__.__dict__:  # Skip fitting if partial_fit does not exists
-        assert 'fit' not in model_step.__class__.__dict__, "%s must contain partial_fit" % model_step.__class__.__name__
-        return None
-
-    def fit_wrap(dataset):  # Use wrapper to avoid returning None
-        model_step.partial_fit(dataset)
-        return pd.DataFrame([[1]], columns=['dummy'])  # Return dummy value
-
-    rv = dataset.map_overlap(func=fit_wrap,
-                             before=model_step.dask_before,
-                             after=0,
-                             meta=(('dummy', np.int),))
-    rv.compute()
-
-
-def _run_fit_pandas(dataset: pd.DataFrame, model_step: Module):
-    if 'partial_fit' not in model_step.__class__.__dict__:  # Skip fitting if partial_fit does not exists
-        assert 'fit' not in model_step.__class__.__dict__, "%s must contain partial_fit" % model_step.__class__.__name__
-        return None
-    model_step.partial_fit(dataset)
-
-
-def _run_transform_dask(dataset: dd.DataFrame, model_step: Module) -> dd.DataFrame:
-    rv = dataset.map_overlap(func=model_step.transform,
-                             before=model_step.dask_before,
-                             after=0)
-    return rv
-
-
-def _run_transform_pandas(dataset: pd.DataFrame, model_step: Module) -> pd.DataFrame:
-    return model_step.transform(dataset)
+__all__ = ['run']
 
 
 def _persist_to_file(dataset: dd.DataFrame, stage_i, stage_name, cache_dir):
@@ -69,31 +24,23 @@ def _persist_to_file(dataset: dd.DataFrame, stage_i, stage_name, cache_dir):
     return dd.read_parquet(cache_path)
 
 
-def _run_pandas(dataset: pd.DataFrame, pipeline: list, fit: bool) -> pd.DataFrame:
-    dataset = dataset.copy()
-    for stage_i, (stage_name, func) in enumerate(pipeline):
-        print("Stage, Pandas [{}/{}] - {}".format(stage_i + 1, len(pipeline), stage_name))
-        if fit:  # Fit only when step needs to be fitted and current run is fit run
-            _run_fit_pandas(dataset, func)
-        dataset = _run_transform_pandas(dataset, func)
+def run(dataset: Union[pd.DataFrame, dd.DataFrame], pipeline: list, fit: bool, cache_dir: str,
+        transform_reset=True) -> dd.DataFrame:
+    for step_idx, (name, transformer) in enumerate(pipeline):
+        print("Step [{}/{}] - {}".format(step_idx + 1, len(pipeline), name))
+        if fit:
+            fit_fun = getattr(transformer, 'fit', None)
+            if fit_fun is not None:
+                reset_fit = getattr(transformer, 'reset_fit', None)
+                if reset_fit is not None:  # For partial steps, need to reset before fitting
+                    reset_fit()
+                fit_fun(dataset)
+        dataset_before = dataset if isinstance(dataset, dd.DataFrame) else None
+        if transform_reset:  # Reset before transforming data
+            reset_transform = getattr(transformer, 'reset_transform', None)
+            if reset_transform is not None:
+                reset_transform()
+        dataset = transformer.transform(dataset)
+        if isinstance(dataset, dd.DataFrame) and dataset is not dataset_before:
+            dataset = _persist_to_file(dataset, step_idx, name, cache_dir)
     return dataset
-
-
-def _run_dask(dataset: dd.DataFrame, pipeline: list, fit: bool, cache_dir: str) -> dd.DataFrame:
-    for stage_i, (stage_name, func) in enumerate(pipeline):
-        print("Stage, Dask [{}/{}] - {}".format(stage_i + 1, len(pipeline), stage_name))
-        if fit:  # Fit only when step needs to be fitted and current run is fit run
-            _run_fit_dask(dataset, func)
-        dataset = _run_transform_dask(dataset, func)
-        dataset = _persist_to_file(dataset, stage_i, stage_name, cache_dir)
-    return dataset
-
-
-def run(dataset: Union[pd.DataFrame, dd.DataFrame], pipeline: list, fit: bool, cache_dir=None) \
-        -> Union[pd.DataFrame, dd.DataFrame]:
-    if isinstance(dataset, pd.DataFrame):
-        return _run_pandas(dataset, pipeline, fit)
-    elif isinstance(dataset, dd.DataFrame):
-        return _run_dask(dataset, pipeline, fit, cache_dir)
-    else:
-        raise NotImplementedError(dataset.__class__.__name__)
