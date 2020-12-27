@@ -35,7 +35,11 @@ def run(dataset: Union[pd.DataFrame, dd.DataFrame], pipeline: list, fit: bool, c
                 if reset_fit is not None:  # For partial steps, need to reset before fitting
                     reset_fit()
                 fit_fun(dataset)
-        dataset_before = dataset if isinstance(dataset, dd.DataFrame) else None
+        if isinstance(dataset, pd.DataFrame):
+            dataset = dataset.copy() # Preserve original dataset from inplace modifications.
+            dataset_before = None
+        else:
+            dataset_before = dataset
         if transform_reset:  # Reset before transforming data
             reset_transform = getattr(transformer, 'reset_transform', None)
             if reset_transform is not None:

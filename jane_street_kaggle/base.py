@@ -3,6 +3,12 @@ import numpy as np
 import pandas as pd
 
 
+class PipelineModule(type):
+
+    def __new__(mcs, name, bases, attrs):
+        return super().__new__(mcs, name, bases, attrs)
+
+
 class SequentialFit:
 
     def partial_fit(self, dataset):

@@ -1,10 +1,9 @@
 import re
 
-import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-from .wrappers import PartialFit, PartialTransform
+from .base import PartialFit, PartialTransform, PipelineModule
 
 FEATURE_PATTERN = re.compile(r'^feature_\d+$')
 TARGET_PATTERN = re.compile(r'^resp(:?_\d+)?$')
@@ -20,17 +19,17 @@ def _get_columns_by_pattern(columns: list, pattern: re.Pattern):
     return rv
 
 
-class Impute:
+class Impute(metaclass=PipelineModule):
     """Fill missing values"""
 
-    def __init__(self, impute_value):
+    def __init__(self, impute_value=0):
         self.impute_value = impute_value
 
     def transform(self, dataset: pd.DataFrame):
         return dataset.fillna(self.impute_value)
 
 
-class Scale(PartialFit, PartialTransform):
+class Scale(PartialFit, PartialTransform, metaclass=PipelineModule):
     """Scale features for better gradient descent"""
 
     def __init__(self, feature_pattern=FEATURE_PATTERN):
@@ -56,7 +55,7 @@ class Scale(PartialFit, PartialTransform):
         pass
 
 
-class Model(PartialTransform):
+class Model(PartialTransform, metaclass=PipelineModule):
     """Make predictions"""
 
     def __init__(self, feature_pattern=FEATURE_PATTERN, target_pattern=TARGET_PATTERN):
@@ -71,17 +70,18 @@ class Model(PartialTransform):
             self.features = _get_columns_by_pattern(dataset.columns, self.feature_pattern)
             self.target = _get_columns_by_pattern(dataset.columns, self.target_pattern)
             self.predicted = ['pred_' + i for i in self.target]
-        dataset[self.predicted] = np.random.uniform(-1, 1, size=(len(dataset), len(self.predicted)))
+        for pred_col in self.predicted:
+            dataset[pred_col] = 0
         return dataset
 
     def reset_transform(self):
         pass
 
 
-class Action(PartialTransform):
+class Action(PartialTransform, metaclass=PipelineModule):
     """Get action for given prediction"""
 
-    def __init__(self, threshold, target_pattern=TARGET_PATTERN):
+    def __init__(self, threshold=0, target_pattern=TARGET_PATTERN):
         self.target_pattern = target_pattern
         self.threshold = threshold
         self.responses = None
