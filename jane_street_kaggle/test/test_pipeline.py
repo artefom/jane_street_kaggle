@@ -6,14 +6,18 @@ import pytest
 def data():
     import pandas as pd
     res_stream = pkg_resources.resource_stream(__name__, 'resources/float_ds.csv')
-    return pd.read_csv(res_stream)
+    rv = pd.read_csv(res_stream)
+    rv.index.name = 'index'
+    return rv
 
 
 @pytest.fixture
 def data_dask():
     import dask.dataframe as dd
     res_stream = pkg_resources.resource_filename(__name__, 'resources/float_ds.csv')
-    return dd.read_csv(res_stream)
+    rv = dd.read_csv(res_stream).reset_index().set_index('index')
+    rv.index.name = 'index'
+    return rv
 
 
 def _get_modules():
@@ -177,6 +181,7 @@ def test_dask_pandas_equivalence(tmpdir, data, data_dask, module):
     dask_in__pd_out = run(data, test_pipeline, fit=False, cache_dir=tmpdir)
     dask_in__dask_out = run(data_dask, test_pipeline, fit=False, cache_dir=tmpdir).compute()
 
+    assert_frame_equal(data, data_dask.compute())
     assert_frame_equal(pd_in__pd_out, pd_in__dask_out)
     assert_frame_equal(pd_in__pd_out, dask_in__pd_out)
     assert_frame_equal(pd_in__pd_out, dask_in__dask_out)
