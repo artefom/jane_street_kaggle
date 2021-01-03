@@ -87,9 +87,11 @@ class RandomBatchFit(PartialFit):
     def __init__(self,
                  batch_size,
                  seq_size,
+                 n_epochs,
                  ):
         self._batch_fit_batch_size = batch_size
         self._batch_fit_seq_size = seq_size
+        self._batch_fit_n_epochs = n_epochs
 
     def _get_random_index(self, dataset):
         if isinstance(dataset, dd.DataFrame):
@@ -117,21 +119,23 @@ class RandomBatchFit(PartialFit):
         dataset[new_index_name] = new_index
         dataset = dataset.reset_index().set_index(new_index_name)
 
+        # Split dataset to batches for fast load
         if isinstance(dataset, dd.DataFrame):
             dataset = dataset.repartition(npartitions=n_batches)
 
         with tempfile.TemporaryDirectory() as temp_dir:
             if isinstance(dataset, dd.DataFrame):
+                # Persist shuffled dataset to disk
                 with ProgressBar():
                     dataset.to_parquet(temp_dir, engine='fastparquet')
                 dataset = dd.read_parquet(temp_dir)
 
             if isinstance(dataset, dd.DataFrame):
-                def fun_wrap(dataset):
-                    self.partial_fit(dataset)
-                    return pd.DataFrame([[1]], columns=['dummy'])
-
-                # Specify single-threaded scheduler explicitly to ensure sequential data feed
-                dataset.map_partitions(fun_wrap, meta=(('dummy', np.int),)).compute(scheduler='single-threaded')
+                for epoch_n in range(self._batch_fit_n_epochs):
+                    for partition_n in range(dataset.npartitions):
+                        try:
+                            self.partial_fit(dataset.get_partition(partition_n))
+                        except StopIteration:
+                            break
             else:
                 self.partial_fit(dataset)

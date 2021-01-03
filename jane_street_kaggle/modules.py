@@ -34,8 +34,9 @@ class Scale(RandomBatchFit, ParallelTransform, metaclass=PipelineModule):
 
     def __init__(self, feature_pattern=FEATURE_PATTERN):
         RandomBatchFit.__init__(self,
-                                batch_size=100,
-                                seq_size=1)
+                                batch_size=10_000,
+                                seq_size=1,
+                                n_epochs=1)
         self.feature_pattern = feature_pattern
         self.scaler = None
         self.features = None
