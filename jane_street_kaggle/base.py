@@ -134,7 +134,8 @@ class RandomBatchFit(PartialFit):
                 for epoch_n in range(self._batch_fit_n_epochs):
                     for partition_n in range(dataset.npartitions):
                         try:
-                            self.partial_fit(dataset.get_partition(partition_n))
+                            # TODO: Get next batch asynchronously
+                            self.partial_fit(dataset.get_partition(partition_n).compute())
                         except StopIteration:
                             break
             else:

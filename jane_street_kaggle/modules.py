@@ -1,22 +1,17 @@
-import re
-
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-from .base import *
+from .base import PipelineModule, ParallelTransform, RandomBatchFit, SequentialTransform
+from .column_selection import get_columns_by_pattern, FEATURE_PATTERN, TARGET_PATTERN
+from .model import Model  # Load model from separate file for better readability
 
-FEATURE_PATTERN = re.compile(r'^feature_\d+$')
-TARGET_PATTERN = re.compile(r'^resp(:?_\d+)?$')
-
-
-def _get_columns_by_pattern(columns: list, pattern: re.Pattern):
-    rv = list()
-    for column_name in columns:
-        match = pattern.match(column_name)
-        if match is None:
-            continue
-        rv.append(column_name)
-    return rv
+# List of all available modules defined here
+__all__ = [
+    'Impute',
+    'Scale',
+    'Model',
+    'Action'
+]
 
 
 class Impute(metaclass=PipelineModule):
@@ -43,7 +38,7 @@ class Scale(RandomBatchFit, ParallelTransform, metaclass=PipelineModule):
 
     def partial_fit(self, dataset: pd.DataFrame):
         if self.scaler is None:  # First run
-            self.features = _get_columns_by_pattern(dataset.columns, self.feature_pattern)
+            self.features = get_columns_by_pattern(dataset.columns, self.feature_pattern)
             self.scaler = StandardScaler()
         self.scaler.partial_fit(dataset[self.features])
 
@@ -53,29 +48,6 @@ class Scale(RandomBatchFit, ParallelTransform, metaclass=PipelineModule):
 
     def partial_transform(self, dataset: pd.DataFrame):
         dataset[self.features] = self.scaler.transform(dataset[self.features])
-        return dataset
-
-    def reset_transform(self):
-        pass
-
-
-class Model(SequentialTransform, metaclass=PipelineModule):
-    """Make predictions"""
-
-    def __init__(self, feature_pattern=FEATURE_PATTERN, target_pattern=TARGET_PATTERN):
-        self.feature_pattern = feature_pattern
-        self.target_pattern = target_pattern
-        self.model = None
-        self.features = None
-        self.target = None
-
-    def partial_transform(self, dataset: pd.DataFrame):
-        if self.model is None:
-            self.features = _get_columns_by_pattern(dataset.columns, self.feature_pattern)
-            self.target = _get_columns_by_pattern(dataset.columns, self.target_pattern)
-            self.predicted = ['pred_' + i for i in self.target]
-        for pred_col in self.predicted:
-            dataset[pred_col] = 0
         return dataset
 
     def reset_transform(self):
@@ -93,7 +65,7 @@ class Action(SequentialTransform, metaclass=PipelineModule):
 
     def partial_transform(self, dataset: pd.DataFrame):
         if self.responses is None:
-            self.responses = _get_columns_by_pattern(dataset.columns, self.target_pattern)
+            self.responses = get_columns_by_pattern(dataset.columns, self.target_pattern)
             self.actions = ['act_' + i for i in self.responses]
         dataset[self.actions] = (dataset[self.responses] > self.threshold).astype(int)
         return dataset
