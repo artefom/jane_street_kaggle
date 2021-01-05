@@ -1,3 +1,4 @@
+import logging
 import math
 import tempfile
 
@@ -5,11 +6,12 @@ import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 from dask.dataframe.core import _emulate
-from dask.diagnostics import ProgressBar
 
 __all__ = ['PipelineModule', 'SequentialFit',
            'SequentialTransform', 'PartialFit',
            'PartialTransform', 'RandomBatchFit', 'ParallelTransform']
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineModule(type):
@@ -126,8 +128,8 @@ class RandomBatchFit(PartialFit):
         with tempfile.TemporaryDirectory() as temp_dir:
             if isinstance(dataset, dd.DataFrame):
                 # Persist shuffled dataset to disk
-                with ProgressBar():
-                    dataset.to_parquet(temp_dir, engine='fastparquet')
+                logger.info("Shuffling dataset for fitting...")
+                dataset.to_parquet(temp_dir, engine='fastparquet')
                 dataset = dd.read_parquet(temp_dir)
 
             if isinstance(dataset, dd.DataFrame):

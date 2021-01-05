@@ -16,31 +16,13 @@ def assert_exit(value, msg):
 # Edit arguments of this function to get parameters from command-line interface
 # See begins for more info
 @begin.subcommand
-def train(data_path: 'data path', model_output: '.pkl output'):
+def train(data: 'path to .csv file',
+          out: '.pkl output' = None,
+          predictions: 'path for output' = None,
+          cache_dir: 'directory for persistent caching after each step' = None):
     """Train model"""
     import jane_street_kaggle.train
-    model = jane_street_kaggle.train.train(data_path)
-
-    import pickle as pkl
-    with open(model_output, 'wb') as f:
-        pkl.dump(model, f)
-
-
-@begin.subcommand
-def index(input_file, output_file):
-    import os
-    import dask.dataframe as dd
-    from dask.diagnostics import ProgressBar
-    pb = ProgressBar()
-    pb.register()
-
-    assert_exit(os.path.exists(input_file), "%s does not exist" % input_file)
-    assert_exit(not os.path.exists(output_file), "%s already exists" % output_file)
-
-    dat = dd.read_csv(input_file)
-    dat.set_index('ts_id').repartition(npartitions=200).to_parquet(output_file,
-                                                                   engine='fastparquet')
-    print("Success")
+    model = jane_street_kaggle.train.train(data, cache_dir=cache_dir)
 
 
 @begin.start

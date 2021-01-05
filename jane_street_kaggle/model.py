@@ -1,3 +1,6 @@
+import logging
+from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
 import torch
@@ -5,6 +8,8 @@ import torch.nn as nn
 
 from .base import *
 from .column_selection import FEATURE_PATTERN, TARGET_PATTERN, get_columns_by_pattern
+
+logger = logging.getLogger(__name__)
 
 
 # Fully connected neural network with one hidden layer
@@ -40,6 +45,9 @@ class Model(RandomBatchFit,
         self.model = None
         self.feature_names = None
         self.target_names = None
+
+        self._last_metrics_print = None
+        self._last_metrics_print_val = None
 
     def partial_transform(self, dataset: pd.DataFrame):
         # Convert features to torch
@@ -92,13 +100,20 @@ class Model(RandomBatchFit,
         pred = self.model.train()(features)
         loss = ((target - pred) ** 2).sum()  # Compute loss for gradient calculation
 
-        # TODO: Make proper overfit detection and stop criterion
-        # Compute and print score
-        with torch.no_grad():
-            y_test_pred = self.model.eval()(features).detach().numpy()
-            y_test_true = target.detach().numpy()
-            score = ((y_test_pred - y_test_true) ** 2).mean()
-            print("\rMSE: {:.5f}   ".format(score), end='')
+        if self._last_metrics_print is None or \
+                datetime.now() > self._last_metrics_print + timedelta(seconds=2):
+            self._last_metrics_print = datetime.now()
+            # TODO: Make proper overfit detection and stop criterion
+            # Compute and print score
+            with torch.no_grad():
+                y_test_pred = self.model.eval()(features).detach().numpy()
+                y_test_true = target.detach().numpy()
+                score = ((y_test_pred - y_test_true) ** 2).mean()
+                improvement = 0
+                if self._last_metrics_print_val is not None:
+                    improvement = (score / self._last_metrics_print_val) - 1
+                logger.info("train MSE: {}; Change: {:+.0f}%".format(float('{:.3g}'.format(score)), improvement * 100))
+                self._last_metrics_print_val = score
 
         # Recompute gradient
         self.optimizer.zero_grad()
@@ -110,3 +125,5 @@ class Model(RandomBatchFit,
     def reset_fit(self):
         # Reset everything before next fit attempt
         self._reset_init_model()
+        self._last_metrics_print = None
+        self._last_metrics_print_val = None

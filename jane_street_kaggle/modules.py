@@ -72,3 +72,16 @@ class Action(SequentialTransform, metaclass=PipelineModule):
 
     def reset_transform(self):
         pass
+
+
+class Index(metaclass=PipelineModule):
+    """Index data by timestamp"""
+
+    def __init__(self, index_col='ts_id', partition_size='300M'):
+        self.index_col = index_col
+        self.partition_size = partition_size
+
+    def transform(self, dataset: pd.DataFrame):
+        if dataset.index.name == self.index_col:
+            return dataset
+        return dataset.set_index(self.index_col).repartition(partition_size=self.partition_size)

@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from typing import Union
@@ -6,6 +7,8 @@ import dask.dataframe as dd
 import pandas as pd
 
 __all__ = ['run']
+
+logger = logging.getLogger(__name__)
 
 
 def _get_cache_path(base_dir, stage_i, stage_name):
@@ -27,7 +30,7 @@ def _persist_to_file(dataset: Union[str, dd.DataFrame], stage_i, stage_name, cac
     if isinstance(dataset, dd.DataFrame):
         dataset.to_parquet(cache_path, engine='fastparquet')
     elif isinstance(dataset, str):
-        print("Moving {} to {}".format(dataset, cache_path))
+        logger.debug("Moving {} to {}".format(dataset, cache_path))
         shutil.move(dataset, cache_path)
     else:
         raise NotImplementedError()
@@ -35,10 +38,9 @@ def _persist_to_file(dataset: Union[str, dd.DataFrame], stage_i, stage_name, cac
     return dd.read_parquet(cache_path)
 
 
-def run(dataset: Union[pd.DataFrame, dd.DataFrame], pipeline: list, fit: bool, cache_dir: str,
-        transform_reset=True) -> dd.DataFrame:
+def run(dataset: Union[pd.DataFrame, dd.DataFrame], pipeline: list, fit: bool, cache_dir: str) -> dd.DataFrame:
     for step_idx, (name, transformer) in enumerate(pipeline):
-        print("Step [{}/{}] - {}".format(step_idx + 1, len(pipeline), name))
+        logger.info("Step [{}/{}] - {}".format(step_idx + 1, len(pipeline), name))
         if fit:
             fit_fun = getattr(transformer, 'fit', None)
             if fit_fun is not None:
@@ -51,10 +53,12 @@ def run(dataset: Union[pd.DataFrame, dd.DataFrame], pipeline: list, fit: bool, c
             dataset_before = None
         else:
             dataset_before = dataset
-        if transform_reset:  # Reset before transforming data
-            reset_transform = getattr(transformer, 'reset_transform', None)
-            if reset_transform is not None:
-                reset_transform()
+
+        # Need to flush internal state of some modules to transform data
+        reset_transform = getattr(transformer, 'reset_transform', None)
+        if reset_transform is not None:
+            reset_transform()
+
         dataset = transformer.transform(dataset)
         if isinstance(dataset, str) or (isinstance(dataset, dd.DataFrame) and dataset is not dataset_before):
             dataset = _persist_to_file(dataset, step_idx, name, cache_dir)
